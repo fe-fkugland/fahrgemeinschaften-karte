@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Kristin JGA – Fahrgemeinschaften</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; height: 100vh; }
+  #sidebar { width: 380px; overflow-y: auto; padding: 16px; background: #f7f7f9; border-right: 1px solid #ddd; box-sizing: border-box; }
+  #map { flex: 1; }
+  h1 { font-size: 18px; margin: 0 0 4px 0; }
+  .subtitle { font-size: 11px; color: #666; margin-bottom: 14px; }
+  .car { background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .car-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .car-title { font-weight: 600; font-size: 13px; }
+  .car-meta { font-size: 11px; color: #666; margin-bottom: 8px; }
+  .stop { font-size: 12px; padding: 3px 0; display: flex; align-items: center; gap: 6px; }
+  .pin { display: inline-block; width: 20px; height: 20px; border-radius: 50%; color: white; text-align: center; font-size: 10px; line-height: 20px; font-weight: bold; flex-shrink: 0; }
+  .driver-tag { background: #222; color: white; font-size: 9px; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+  .note { font-size: 11px; color: #888; margin-top: 6px; font-style: italic; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+  label.toggle { font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  input[type="checkbox"] { margin: 0; }
+  .route-stats { font-size: 11px; color: #555; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #ddd; }
+  .loader { color: #999; font-style: italic; }
+  .destination { background: #fff8dc; border-left: 5px solid #d4a017; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h1>🚗 Kristin JGA – Fahrgemeinschaften</h1>
+
+  <div class="destination">🎯 <strong>Ziel: <a href="https://maps.app.goo.gl/x2mBvzG2ZyBXdZjz7" target="_blank" style="color:#8b6914;text-decoration:underline;">Greenview Tornow</a></strong><br>nördlich von Berlin · Routen über OSRM (echte Straßen)</div>
+
+  <div id="cars"></div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// Ziel: Greenview Tornow (Brandenburg, nördlich Berlin) – ungefähre Koordinaten
+const DESTINATION = { name: "Greenview Tornow", coord: [52.9486, 13.4053] };
+
+// Reihenfolge der Stops jeweils optimiert: südlichste → nördlichste, Ziel im Norden
+const cars = [
+  {
+    name: "Frederike Kugland",
+    color: "#e63946",
+    time: "14:00",
+    note: "Team Deko · Deko wird einen Tag vorher bei Madelaine abgeholt · Joey kommt mit S-Bahn zur Jannowitzbrücke",
+    stops: [
+      { who: "Frederike", driver: true, addr: "Waldemarstr 5, Kreuzberg", coord: [52.5106, 13.4239] },
+      { who: "Joey McCready", addr: "S Jannowitzbrücke (kommt mit S-Bahn vom Hbf)", coord: [52.5145, 13.4178] },
+      { who: "Fitore Kamberaj", addr: "Eichenstr. 19, Pankow (ab 14:00)", coord: [52.5878, 13.4083] }
+    ],
+    transit: [
+      {
+        person: "Joey",
+        from: "Berlin Hbf",
+        fromCoord: [52.5251, 13.3692],
+        toCoord: [52.5145, 13.4178],
+        route: "S5/S7/S75 direkt (3 Stationen, ~6 Min)",
+        waypoints: [
+          [52.5251, 13.3692], // Berlin Hbf
+          [52.5202, 13.3870], // S Friedrichstraße
+          [52.5234, 13.4023], // S Hackescher Markt
+          [52.5219, 13.4133], // S Alexanderplatz
+          [52.5145, 13.4178]  // S Jannowitzbrücke
+        ]
+      }
+    ]
+  },
+  {
+    name: "Julia Duffner",
+    color: "#1d3557",
+    time: "~16:00",
+    note: "Mini One · Madelaine kommt mit U-Bahn zu Kristin – Julia sammelt beide an Schönhauser Allee 54 ein",
+    stops: [
+      { who: "Julia Duffner", driver: true, addr: "Schönhauser Allee 70e, Prenzlauer Berg", coord: [52.5435, 13.4128] },
+      { who: "Madelaine", addr: "Schönhauser Allee 54 (kommt mit U-Bahn)", coord: [52.5392, 13.4131] },
+      { who: "Kristin 👰", addr: "Schönhauser Allee 54, Prenzlauer Berg", coord: [52.5392, 13.4131] }
+    ],
+    transit: [
+      {
+        person: "Madelaine",
+        from: "Willibald-Alexis-Str. 20, Kreuzberg",
+        fromCoord: [52.4878, 13.3878],
+        toCoord: [52.5392, 13.4131],
+        route: "U Mehringdamm → U6 bis Stadtmitte → U2 Richtung Pankow bis Eberswalder Str (~30 Min, 1 Umstieg)",
+        waypoints: [
+          [52.4878, 13.3878], // Willibald-Alexis-Str 20
+          [52.4933, 13.3886], // U Mehringdamm (Fußweg)
+          [52.4977, 13.3915], // U Hallesches Tor (U6)
+          [52.5066, 13.3902], // U Kochstr (U6)
+          [52.5114, 13.3899], // U Stadtmitte (U6 Umstieg)
+          [52.5118, 13.4015], // U Spittelmarkt (U2)
+          [52.5163, 13.4119], // U Klosterstr (U2)
+          [52.5210, 13.4123], // U Alexanderplatz (U2)
+          [52.5283, 13.4101], // U Rosa-Luxemburg-Pl (U2)
+          [52.5326, 13.4108], // U Senefelderpl (U2)
+          [52.5408, 13.4109], // U Eberswalder Str (U2)
+          [52.5392, 13.4131]  // Schönhauser Allee 54 (Fußweg)
+        ]
+      }
+    ]
+  },
+  {
+    name: "Lea Freist",
+    color: "#2a9d8f",
+    time: "~16:00",
+    note: "Viola entweder ab Chausseestr. oder direkt vom BER (landet 13:05, müsste sonst warten) · Tipp: Janine & Johanna könnten zu Viola kommen, dann hat Lea weniger Fahrerei",
+    stops: [
+      { who: "Lea Freist", driver: true, addr: "Bergmannkiez, Kreuzberg", coord: [52.4889, 13.3892] },
+      { who: "Viola Schipfer", addr: "Chausseestr. 35a, Mitte (ab 14:30)", coord: [52.5333, 13.3789] },
+      { who: "Janine Strehlau", addr: "Moabit (kommt flexibel)", coord: [52.5311, 13.3414] },
+      { who: "Johanna Rief", addr: "Seestraße 43, Wedding (ab 16:00)", coord: [52.5475, 13.3325] }
+    ]
+  },
+  {
+    name: "Nadine Jantz",
+    color: "#8338ec",
+    time: "~16:30",
+    note: "Kristina kommt mit Öffis zum Hermannplatz (statt Lankwitz-Umweg) · steigt dort mit Alexandra zusammen ein",
+    stops: [
+      { who: "Nadine Jantz", driver: true, addr: "Sonnenallee 149, Neukölln", coord: [52.4717, 13.4458] },
+      { who: "Judith", addr: "Neukölln (flexibel)", coord: [52.4811, 13.4350] },
+      { who: "Alexandra", addr: "Hermannplatz (zu Fuß von Hasenheide)", coord: [52.4868, 13.4244] },
+      { who: "Kristina", addr: "Hermannplatz (kommt mit Öffis aus Lankwitz)", coord: [52.4868, 13.4244] }
+    ],
+    transit: [
+      {
+        person: "Kristina",
+        from: "Mühlenstr. 54, Lankwitz",
+        fromCoord: [52.4275, 13.3525],
+        toCoord: [52.4868, 13.4244],
+        route: "Bus zur S Lankwitz → S25/S26 Richtung Norden bis S+U Yorckstraße → U7 Richtung Rudow bis Hermannplatz (~35–40 Min, 1 Umstieg)",
+        waypoints: [
+          [52.4275, 13.3525], // Mühlenstr 54
+          [52.4377, 13.3415], // S Lankwitz (Bus/Fußweg)
+          [52.4493, 13.3577], // S Südende (S25)
+          [52.4543, 13.3727], // S Priesterweg (S25)
+          [52.4768, 13.3604], // S Schöneberg (S25)
+          [52.4900, 13.3756], // S+U Yorckstraße (Umstieg S25→U7)
+          [52.4933, 13.3886], // U Mehringdamm (U7)
+          [52.4889, 13.3978], // U Gneisenaustr (U7)
+          [52.4870, 13.4082], // U Südstern (U7)
+          [52.4868, 13.4244]  // U Hermannplatz
+        ]
+      }
+    ]
+  },
+  {
+    name: "Juliane",
+    color: "#f4a261",
+    time: "~17:00",
+    note: "Wartet auf Pauline (kann erst 17:00 los)",
+    stops: [
+      { who: "Juliane", driver: true, addr: "Eitelstr. 67, Lichtenberg", coord: [52.5036, 13.4742] },
+      { who: "Marina", addr: "Lasdehner Str. 26, Friedrichshain (flexibel)", coord: [52.5141, 13.4717] },
+      { who: "Jo Rumstadt", addr: "Rückerstr. 6, Mitte (ab 16:00)", coord: [52.5294, 13.4117] },
+      { who: "Pauline", addr: "Bornholmer Str. 90 (ab 17:00)", coord: [52.5536, 13.4106] }
+    ]
+  }
+];
+
+// === KARTE ===
+const map = L.map('map').setView([52.65, 13.42], 10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+// Ziel-Pin
+const destIcon = L.divIcon({
+  className: 'dest-pin',
+  html: `<div style="background:#d4a017;color:white;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.4);">🎯</div>`,
+  iconSize: [34, 34],
+  iconAnchor: [17, 17]
+});
+L.marker(DESTINATION.coord, { icon: destIcon }).bindPopup(`<b>${DESTINATION.name}</b><br>Ziel`).addTo(map);
+
+const layerGroups = [];
+
+async function fetchRoute(coords) {
+  // coords: [[lat, lon], ...] → OSRM erwartet "lon,lat;lon,lat;..."
+  const coordStr = coords.map(c => `${c[1]},${c[0]}`).join(';');
+  const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson`;
+  try {
+    const r = await fetch(url);
+    const data = await r.json();
+    if (data.code === 'Ok' && data.routes && data.routes[0]) {
+      return {
+        geometry: data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]),
+        distance: data.routes[0].distance,
+        duration: data.routes[0].duration
+      };
+    }
+  } catch (e) { console.warn('OSRM fail', e); }
+  return null;
+}
+
+cars.forEach((car, idx) => {
+  const group = L.layerGroup().addTo(map);
+  layerGroups.push(group);
+
+  // Pickup-Marker
+  car.stops.forEach((stop, i) => {
+    const icon = L.divIcon({
+      className: 'custom-pin',
+      html: `<div style="background:${car.color};color:white;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:12px;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4);">${i+1}</div>`,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13]
+    });
+    L.marker(stop.coord, { icon })
+      .bindPopup(`<b>${car.name} · Stop ${i+1}</b><br>${stop.who}${stop.driver ? ' 🚗' : ''}<br><small>${stop.addr}</small>`)
+      .addTo(group);
+  });
+
+  // Öffi-Anreisen (gestrichelt) + Origin-Marker (Quadrat)
+  if (car.transit) {
+    car.transit.forEach(t => {
+      // gestrichelte Linie entlang echter U/S-Bahn-Stationen (waypoints) oder Luftlinie fallback
+      const pathCoords = t.waypoints || [t.fromCoord, t.toCoord];
+      L.polyline(pathCoords, {
+        color: car.color, weight: 3, opacity: 0.75, dashArray: '8,8'
+      }).bindPopup(`<b>🚆 ${t.person} – Öffi-Anreise</b><br><small>${t.route}</small>`).addTo(group);
+
+      // kleine Marker für Zwischenstationen
+      if (t.waypoints) {
+        t.waypoints.slice(1, -1).forEach(wp => {
+          L.circleMarker(wp, {
+            radius: 3, color: car.color, fillColor: 'white', fillOpacity: 1, weight: 2
+          }).addTo(group);
+        });
+      }
+
+      // Origin-Marker als Quadrat mit Zug-Icon
+      const transitIcon = L.divIcon({
+        className: 'transit-pin',
+        html: `<div style="background:white;color:${car.color};width:24px;height:24px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid ${car.color};box-shadow:0 1px 3px rgba(0,0,0,0.4);">🚆</div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+      L.marker(t.fromCoord, { icon: transitIcon })
+        .bindPopup(`<b>${t.person} startet hier</b><br>${t.from}<br><small>${t.route}</small>`)
+        .addTo(group);
+    });
+  }
+});
+
+// === SIDEBAR ===
+const sidebar = document.getElementById('cars');
+cars.forEach((car, idx) => {
+  const div = document.createElement('div');
+  div.className = 'car';
+  div.style.borderLeftColor = car.color;
+  div.innerHTML = `
+    <div class="car-header">
+      <label class="toggle">
+        <input type="checkbox" checked data-car="${idx}">
+        <span class="swatch" style="background:${car.color}"></span>
+        ${car.name}
+      </label>
+    </div>
+    <div class="car-meta">⏰ ${car.time} · ${car.stops.filter(s => !s.who.startsWith('Deko abholen')).length} Personen</div>
+    ${car.stops.map((s,i) => `
+      <div class="stop">
+        <span class="pin" style="background:${car.color}">${i+1}</span>
+        ${s.who}${s.driver ? '<span class="driver-tag">FAHRER</span>' : ''}
+      </div>
+    `).join('')}
+    <div class="note">${car.note}</div>
+    <div class="route-stats" id="stats-${idx}"><span class="loader">Route wird geladen...</span></div>
+  `;
+  sidebar.appendChild(div);
+});
+
+// Toggle layers
+document.querySelectorAll('input[type=checkbox]').forEach(cb => {
+  cb.addEventListener('change', e => {
+    const idx = +e.target.dataset.car;
+    if (e.target.checked) map.addLayer(layerGroups[idx]);
+    else map.removeLayer(layerGroups[idx]);
+  });
+});
+
+// === OSRM Routes laden (sequenziell, um public API nicht zu überlasten) ===
+(async () => {
+  for (let idx = 0; idx < cars.length; idx++) {
+    const car = cars[idx];
+    const coords = [...car.stops.map(s => s.coord), DESTINATION.coord];
+    const route = await fetchRoute(coords);
+    const statsEl = document.getElementById(`stats-${idx}`);
+    if (route) {
+      L.polyline(route.geometry, { color: car.color, weight: 4, opacity: 0.8 }).addTo(layerGroups[idx]);
+      const km = (route.distance / 1000).toFixed(1);
+      const min = Math.round(route.duration / 60);
+      statsEl.innerHTML = `📏 ${km} km · ⏱️ ~${min} Min Fahrtzeit (ohne Wartezeit)`;
+    } else {
+      // Fallback: Polyline
+      const fallback = [...car.stops.map(s => s.coord), DESTINATION.coord];
+      L.polyline(fallback, { color: car.color, weight: 3, opacity: 0.5, dashArray: '5,8' }).addTo(layerGroups[idx]);
+      statsEl.innerHTML = '⚠️ OSRM nicht erreichbar – Luftlinie angezeigt';
+    }
+    await new Promise(r => setTimeout(r, 300));
+  }
+})();
+</script>
+</body>
+</html>
