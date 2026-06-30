@@ -28,28 +28,35 @@
   .destination { background: #fff8dc; border-left: 5px solid #d4a017; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; font-size: 12px; }
   .gmaps-btn { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 6px 10px; background: #4285F4; color: white; text-decoration: none; font-size: 11px; font-weight: 600; border-radius: 5px; }
   .gmaps-btn:hover { background: #3367d6; }
-  #sidebar-toggle {
-    position: fixed; top: 12px; z-index: 1000;
-    background: white; border: 1px solid #ccc; border-radius: 8px;
-    width: 40px; height: 40px; cursor: pointer; font-size: 18px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2); display: flex;
-    align-items: center; justify-content: center;
-    left: 392px; transition: left 0.25s ease;
+  #close-sidebar {
+    display: flex; align-items: center; gap: 6px;
+    background: #222; color: white; border: none; border-radius: 6px;
+    padding: 8px 12px; cursor: pointer; font-size: 13px; font-weight: 600;
+    margin-bottom: 12px; width: 100%; justify-content: center;
   }
-  body.sidebar-hidden #sidebar-toggle { left: 12px; }
+  #close-sidebar:hover { background: #000; }
+  #open-sidebar {
+    display: none;
+    position: fixed; top: 12px; left: 12px; z-index: 1100;
+    background: white; border: 2px solid #333; border-radius: 8px;
+    height: 40px; padding: 0 14px; cursor: pointer; font-size: 14px; font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    align-items: center; gap: 6px;
+  }
+  #open-sidebar:hover { background: #f0f0f0; }
+  body.sidebar-hidden #open-sidebar { display: flex; }
   @media (max-width: 700px) {
     #sidebar { position: absolute; top: 0; left: 0; bottom: 0; z-index: 999; width: 85%; max-width: 380px; box-shadow: 2px 0 8px rgba(0,0,0,0.2); }
     body.sidebar-hidden #sidebar { transform: translateX(-100%); width: 85%; max-width: 380px; padding: 16px; }
-    #sidebar-toggle { left: auto; right: 12px; }
-    body.sidebar-hidden #sidebar-toggle { left: auto; right: 12px; }
   }
 </style>
 </head>
 <body>
 
-<button id="sidebar-toggle" title="Übersicht ein-/ausblenden" aria-label="Übersicht ein-/ausblenden">☰</button>
+<button id="open-sidebar" aria-label="Übersicht anzeigen">☰ Übersicht</button>
 
 <div id="sidebar">
+  <button id="close-sidebar" aria-label="Karte anzeigen">🗺️ Karte anzeigen</button>
   <h1>🚗 Kristin JGA – Fahrgemeinschaften</h1>
 
   <div class="destination">🎯 <strong>Ziel: <a href="https://maps.app.goo.gl/x2mBvzG2ZyBXdZjz7" target="_blank" style="color:#8b6914;text-decoration:underline;">Greenview Tornow</a></strong><br>nördlich von Berlin · Routen über OSRM (echte Straßen)</div>
@@ -187,7 +194,7 @@ const cars = [
 ];
 
 // === KARTE ===
-const map = L.map('map').setView([52.65, 13.42], 10);
+const map = L.map('map', { zoomControl: false }).setView([52.65, 13.42], 10);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '© OpenStreetMap'
@@ -299,12 +306,18 @@ cars.forEach((car, idx) => {
   sidebar.appendChild(div);
 });
 
-// Google Maps Directions URL: origin = Fahrer, waypoints = Mitfahrer (in Reihenfolge), destination = Greenview
+// Adressen aufräumen: Klammer-Kommentare entfernen, "Berlin" sicherstellen
+function cleanAddr(addr) {
+  let a = addr.replace(/\s*\(.*?\)\s*/g, '').trim();
+  if (!/berlin/i.test(a)) a += ', Berlin';
+  return a;
+}
+// Google Maps Directions URL: Adressen statt Koordinaten (sonst wird auf nächsten POI gesnappt)
 function buildGMapsLink(car) {
-  const pts = car.stops.map(s => `${s.coord[0]},${s.coord[1]}`);
-  const origin = pts[0];
-  const waypoints = pts.slice(1).join('|');
-  const destination = `${DESTINATION.coord[0]},${DESTINATION.coord[1]}`;
+  const addrs = car.stops.map(s => cleanAddr(s.addr));
+  const origin = addrs[0];
+  const waypoints = addrs.slice(1).join('|');
+  const destination = 'Greenview Tornow, Tornow';
   const params = new URLSearchParams({
     api: '1',
     origin,
@@ -317,15 +330,12 @@ function buildGMapsLink(car) {
 }
 
 // Sidebar Toggle (mobile + desktop)
-const toggleBtn = document.getElementById('sidebar-toggle');
-toggleBtn.addEventListener('click', () => {
-  document.body.classList.toggle('sidebar-hidden');
+function setSidebarHidden(hidden) {
+  document.body.classList.toggle('sidebar-hidden', hidden);
   setTimeout(() => map.invalidateSize(), 280);
-});
-// Auf Mobile per Default einklappen, damit Karte sofort sichtbar
-if (window.matchMedia('(max-width: 700px)').matches) {
-  document.body.classList.add('sidebar-hidden');
 }
+document.getElementById('close-sidebar').addEventListener('click', () => setSidebarHidden(true));
+document.getElementById('open-sidebar').addEventListener('click', () => setSidebarHidden(false));
 
 // Toggle layers
 document.querySelectorAll('input[type=checkbox]').forEach(cb => {
