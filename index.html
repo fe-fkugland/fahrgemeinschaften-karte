@@ -6,9 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
-  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; height: 100vh; overflow: hidden; }
-  #sidebar { width: 380px; overflow-y: auto; padding: 16px; background: #f7f7f9; border-right: 1px solid #ddd; box-sizing: border-box; transition: transform 0.25s ease, width 0.25s ease; flex-shrink: 0; }
-  body.sidebar-hidden #sidebar { width: 0; padding: 0; border-right: none; overflow: hidden; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; height: 100vh; }
+  #sidebar { width: 380px; overflow-y: auto; padding: 16px; background: #f7f7f9; border-right: 1px solid #ddd; box-sizing: border-box; }
   #map { flex: 1; }
   h1 { font-size: 18px; margin: 0 0 4px 0; }
   .subtitle { font-size: 11px; color: #666; margin-bottom: 14px; }
@@ -26,37 +25,11 @@
   .route-stats { font-size: 11px; color: #555; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #ddd; }
   .loader { color: #999; font-style: italic; }
   .destination { background: #fff8dc; border-left: 5px solid #d4a017; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; font-size: 12px; }
-  .gmaps-btn { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 6px 10px; background: #4285F4; color: white; text-decoration: none; font-size: 11px; font-weight: 600; border-radius: 5px; }
-  .gmaps-btn:hover { background: #3367d6; }
-  #close-sidebar {
-    display: flex; align-items: center; gap: 6px;
-    background: #222; color: white; border: none; border-radius: 6px;
-    padding: 8px 12px; cursor: pointer; font-size: 13px; font-weight: 600;
-    margin-bottom: 12px; width: 100%; justify-content: center;
-  }
-  #close-sidebar:hover { background: #000; }
-  #open-sidebar {
-    display: none;
-    position: fixed; top: 12px; left: 12px; z-index: 1100;
-    background: white; border: 2px solid #333; border-radius: 8px;
-    height: 40px; padding: 0 14px; cursor: pointer; font-size: 14px; font-weight: 600;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-    align-items: center; gap: 6px;
-  }
-  #open-sidebar:hover { background: #f0f0f0; }
-  body.sidebar-hidden #open-sidebar { display: flex; }
-  @media (max-width: 700px) {
-    #sidebar { position: absolute; top: 0; left: 0; bottom: 0; z-index: 999; width: 85%; max-width: 380px; box-shadow: 2px 0 8px rgba(0,0,0,0.2); }
-    body.sidebar-hidden #sidebar { transform: translateX(-100%); width: 85%; max-width: 380px; padding: 16px; }
-  }
 </style>
 </head>
 <body>
 
-<button id="open-sidebar" aria-label="Übersicht anzeigen">☰ Übersicht</button>
-
 <div id="sidebar">
-  <button id="close-sidebar" aria-label="Karte anzeigen">🗺️ Karte anzeigen</button>
   <h1>🚗 Kristin JGA – Fahrgemeinschaften</h1>
 
   <div class="destination">🎯 <strong>Ziel: <a href="https://maps.app.goo.gl/x2mBvzG2ZyBXdZjz7" target="_blank" style="color:#8b6914;text-decoration:underline;">Greenview Tornow</a></strong><br>nördlich von Berlin · Routen über OSRM (echte Straßen)</div>
@@ -104,7 +77,7 @@ const cars = [
     name: "Julia Duffner",
     color: "#1d3557",
     time: "~16:00",
-    note: "Mini One · Madelaine kommt mit U-Bahn zu Kristin – Julia sammelt beide an Schönhauser Allee 54 ein",
+    note: "Mini One · Madelaine kommt mit U-Bahn zu Kristin – Julia sammelt beide an Schönhauser Allee 54 ein · Überraschungsmoment gemeinsam mit Julianes Auto um 16:00 🎉",
     stops: [
       { who: "Julia Duffner", driver: true, addr: "Schönhauser Allee 70e, Prenzlauer Berg", coord: [52.5435, 13.4128] },
       { who: "Madelaine", addr: "Schönhauser Allee 54 (kommt mit U-Bahn)", coord: [52.5392, 13.4131] },
@@ -137,33 +110,21 @@ const cars = [
   {
     name: "Lea Freist",
     color: "#2a9d8f",
-    time: "~16:00",
-    note: "Viola entweder ab Chausseestr. oder direkt vom BER (landet 13:05, müsste sonst warten) · Tipp: Janine & Johanna könnten zu Viola kommen, dann hat Lea weniger Fahrerei",
+    time: "15:00",
+    note: "Viola entweder ab Chausseestr. oder direkt vom BER (landet 13:05, müsste sonst warten) · Kristina kommt mit Öffis aus Lankwitz zu Lea nach Bergmannkiez (S25 → Yorckstr → U7 Gneisenaustr) · Tipp: Janine könnte zu Viola kommen, dann hat Lea weniger Fahrerei",
     stops: [
       { who: "Lea Freist", driver: true, addr: "Bergmannkiez, Kreuzberg", coord: [52.4889, 13.3892] },
+      { who: "Kristina", addr: "Bergmannkiez (kommt mit Öffis aus Lankwitz)", coord: [52.4889, 13.3892] },
       { who: "Viola Schipfer", addr: "Chausseestr. 35a, Mitte (ab 14:30)", coord: [52.5333, 13.3789] },
-      { who: "Janine Strehlau", addr: "Moabit (kommt flexibel)", coord: [52.5311, 13.3414] },
-      { who: "Johanna Rief", addr: "Seestraße 43, Wedding (ab 16:00)", coord: [52.5475, 13.3325] }
-    ]
-  },
-  {
-    name: "Nadine Jantz",
-    color: "#8338ec",
-    time: "~16:30",
-    note: "Kristina kommt mit Öffis zum Hermannplatz (statt Lankwitz-Umweg) · steigt dort mit Alexandra zusammen ein",
-    stops: [
-      { who: "Nadine Jantz", driver: true, addr: "Sonnenallee 149, Neukölln", coord: [52.4717, 13.4458] },
-      { who: "Judith", addr: "Neukölln (flexibel)", coord: [52.4811, 13.4350] },
-      { who: "Alexandra", addr: "Hermannplatz (zu Fuß von Hasenheide)", coord: [52.4868, 13.4244] },
-      { who: "Kristina", addr: "Hermannplatz (kommt mit Öffis aus Lankwitz)", coord: [52.4868, 13.4244] }
+      { who: "Janine Strehlau", addr: "Moabit (kommt flexibel)", coord: [52.5311, 13.3414] }
     ],
     transit: [
       {
         person: "Kristina",
         from: "Mühlenstr. 54, Lankwitz",
         fromCoord: [52.4275, 13.3525],
-        toCoord: [52.4868, 13.4244],
-        route: "Bus zur S Lankwitz → S25/S26 Richtung Norden bis S+U Yorckstraße → U7 Richtung Rudow bis Hermannplatz (~35–40 Min, 1 Umstieg)",
+        toCoord: [52.4889, 13.3892],
+        route: "Bus zur S Lankwitz → S25/S26 Richtung Norden bis S+U Yorckstraße → U7 Richtung Rudow bis U Gneisenaustr → 5 Min Fußweg (~35 Min, 1 Umstieg)",
         waypoints: [
           [52.4275, 13.3525], // Mühlenstr 54
           [52.4377, 13.3415], // S Lankwitz (Bus/Fußweg)
@@ -172,29 +133,40 @@ const cars = [
           [52.4768, 13.3604], // S Schöneberg (S25)
           [52.4900, 13.3756], // S+U Yorckstraße (Umstieg S25→U7)
           [52.4933, 13.3886], // U Mehringdamm (U7)
-          [52.4889, 13.3978], // U Gneisenaustr (U7)
-          [52.4870, 13.4082], // U Südstern (U7)
-          [52.4868, 13.4244]  // U Hermannplatz
+          [52.4889, 13.3978], // U Gneisenaustr (U7) - Ausstieg
+          [52.4889, 13.3892]  // Bergmannkiez (Fußweg)
         ]
       }
     ]
   },
   {
+    name: "Nadine Jantz",
+    color: "#8338ec",
+    time: "17:00",
+    note: "Alexandra wird direkt an der Hasenheide abgeholt · Jo liegt auf dem Weg nach Norden",
+    stops: [
+      { who: "Nadine Jantz", driver: true, addr: "Sonnenallee 149, Neukölln", coord: [52.4717, 13.4458] },
+      { who: "Judith", addr: "Neukölln (flexibel)", coord: [52.4811, 13.4350] },
+      { who: "Alexandra", addr: "Hasenheide 56, Kreuzberg", coord: [52.4856, 13.4039] },
+      { who: "Jo Rumstadt", addr: "Rückerstr. 6, Mitte (ab 16:00)", coord: [52.5294, 13.4117] }
+    ]
+  },
+  {
     name: "Juliane",
     color: "#f4a261",
-    time: "~17:00",
-    note: "Wartet auf Pauline (kann erst 17:00 los)",
+    time: "16:00",
+    note: "Überrascht Kristin zusammen mit Julia & Madelaine an Schönhauser Allee 54 · Pauline wird dort abgeholt",
     stops: [
       { who: "Juliane", driver: true, addr: "Eitelstr. 67, Lichtenberg", coord: [52.5036, 13.4742] },
+      { who: "Johanna Rief", addr: "Karlshorst (ab 16:00, möglichst spät)", coord: [52.4835, 13.5300] },
       { who: "Marina", addr: "Lasdehner Str. 26, Friedrichshain (flexibel)", coord: [52.5141, 13.4717] },
-      { who: "Jo Rumstadt", addr: "Rückerstr. 6, Mitte (ab 16:00)", coord: [52.5294, 13.4117] },
-      { who: "Pauline", addr: "Bornholmer Str. 90 (ab 17:00)", coord: [52.5536, 13.4106] }
+      { who: "Pauline", addr: "Schönhauser Allee 54 (Überraschung + Pickup)", coord: [52.5392, 13.4131] }
     ]
   }
 ];
 
 // === KARTE ===
-const map = L.map('map', { zoomControl: false }).setView([52.65, 13.42], 10);
+const map = L.map('map').setView([52.65, 13.42], 10);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '© OpenStreetMap'
@@ -300,42 +272,10 @@ cars.forEach((car, idx) => {
       </div>
     `).join('')}
     <div class="note">${car.note}</div>
-    <a class="gmaps-btn" href="${buildGMapsLink(car)}" target="_blank" rel="noopener">🗺️ Route in Google Maps öffnen</a>
     <div class="route-stats" id="stats-${idx}"><span class="loader">Route wird geladen...</span></div>
   `;
   sidebar.appendChild(div);
 });
-
-// Adressen aufräumen: Klammer-Kommentare entfernen, "Berlin" sicherstellen
-function cleanAddr(addr) {
-  let a = addr.replace(/\s*\(.*?\)\s*/g, '').trim();
-  if (!/berlin/i.test(a)) a += ', Berlin';
-  return a;
-}
-// Google Maps Directions URL: Adressen statt Koordinaten (sonst wird auf nächsten POI gesnappt)
-function buildGMapsLink(car) {
-  const addrs = car.stops.map(s => cleanAddr(s.addr));
-  const origin = addrs[0];
-  const waypoints = addrs.slice(1).join('|');
-  const destination = 'Greenview Tornow, Tornow';
-  const params = new URLSearchParams({
-    api: '1',
-    origin,
-    destination,
-    travelmode: 'driving'
-  });
-  let url = `https://www.google.com/maps/dir/?${params.toString()}`;
-  if (waypoints) url += `&waypoints=${encodeURIComponent(waypoints)}`;
-  return url;
-}
-
-// Sidebar Toggle (mobile + desktop)
-function setSidebarHidden(hidden) {
-  document.body.classList.toggle('sidebar-hidden', hidden);
-  setTimeout(() => map.invalidateSize(), 280);
-}
-document.getElementById('close-sidebar').addEventListener('click', () => setSidebarHidden(true));
-document.getElementById('open-sidebar').addEventListener('click', () => setSidebarHidden(false));
 
 // Toggle layers
 document.querySelectorAll('input[type=checkbox]').forEach(cb => {
